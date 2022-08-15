@@ -107,7 +107,7 @@ printf "\n\n${GREEN}
                                                "
 printf "\n${ORANGE}[+] AirCap Tool Made By [ 0xCrypt00o  : 'Eslam Mohamed' ] To Capture WPA Handshake and PMKID "
 printf "\n${ORANGE}[+] github: https://github.com/Crypt00o"
-sleep 3
+sleep 1
 
 }
 
@@ -140,7 +140,7 @@ elif [[ -z $check_interface ]]
 then printf "\n\n${RED}[-] Interface Not Found !" && exit
 
 elif [[ -z $check_interface_monitor ]] 
-then printf "\n\n${RED}  [-] Please Put The Interface $interface in Monitor Mode Useing Command \n\n$ airmon-ng start $interface \n\n  And Try Again  !" && exit
+then printf "\n\n${RED}  [-] Please Put The Interface $interface in Monitor Mode Useing Command \n\n$ sudo airmon-ng start $interface \n\n  And Try Again  !" && exit
 
 else
     if [[ -z $count ]]
